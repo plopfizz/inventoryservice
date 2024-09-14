@@ -11,6 +11,7 @@ import com.inventoryservice.inventoryservice.Repositories.BelowThresholdProducts
 import com.inventoryservice.inventoryservice.Repositories.InventoryRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -24,6 +25,8 @@ public class InventoryServiceImplementation implements InventoryService {
     private final Integer threshold = 100;
     @Autowired
     private BelowThresholdProductsRepository belowThresholdProductsRepository;
+    @Autowired
+    private KafkaTemplate<String, String> kafkaTemplate;
     @KafkaListener(topics = "product_events", groupId = "inventory_group")
     public void handleProductEvents(JsonNode event) throws IOException {
         ObjectMapper objectMapper = new ObjectMapper();
@@ -54,6 +57,8 @@ public class InventoryServiceImplementation implements InventoryService {
                 if (inventory.getQuantity() >= adjustment.getQuantity()) {
                     inventory.setQuantity(inventory.getQuantity() - adjustment.getQuantity());
                     if(threshold > inventory.getQuantity()){
+                        String message = "Product with ID: " + inventory.getProductId() + " is low in stock!";
+                        kafkaTemplate.send("low_stock_alerts", message);
                         Optional<BelowThresholdProductQuantity> products =belowThresholdProductsRepository.findByProductId(inventory.getProductId());
                         if(products.isPresent()){
                             BelowThresholdProductQuantity existingProductWithLessInventory = products.get();
