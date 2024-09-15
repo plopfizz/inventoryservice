@@ -6,6 +6,7 @@ import com.inventoryservice.inventoryservice.Dto.StockAdjustment;
 import com.inventoryservice.inventoryservice.Entities.Inventory;
 import com.inventoryservice.inventoryservice.Services.InventoryService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 

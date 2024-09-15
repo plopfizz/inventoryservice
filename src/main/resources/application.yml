@@ -28,6 +28,16 @@ spring:
           value:
             default-type: com.fasterxml.jackson.databind.JsonNode
 
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring:
+          json:
+            trusted:
+              packages: "*"
+
+
 authentication:
   service:
     url: http://localhost:8005/auth
