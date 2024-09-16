@@ -54,7 +54,7 @@ public class InventoryServiceImplementation implements InventoryService {
     @KafkaListener(topics = "update_order_quantity", groupId = "inventory_group")
     public void reserveOrderForProduct(JsonNode event) throws IOException {
         // Log the raw event to check its content
-        System.out.println("Received event: " + event.toString());
+        System.out.println("Received event: " + event.toString()+" "+LocalDateTime.now());
 
         ObjectMapper objectMapper = new ObjectMapper();
         try {
@@ -71,6 +71,7 @@ public class InventoryServiceImplementation implements InventoryService {
 
     public void adjustStock(StockAdjustment adjustment) {
         Optional<Inventory> inventoryOptional = inventoryRepository.findByProductId(adjustment.getProductId());
+        System.out.println("we are in adjustStock "+LocalDateTime.now());
         if (inventoryOptional.isPresent()) {
             Inventory inventory = inventoryOptional.get();
             if (StockAdjustmentActionEnum.INCREASE.equals(adjustment.getStockAdjustmentAction())) {
@@ -145,8 +146,33 @@ public class InventoryServiceImplementation implements InventoryService {
         if (inventory.isPresent()) {
             Inventory inventory1 = inventory.get();
             if ( inventory1.getQuantity() >= outBoxOrder.getQuantity()) {
-                // Reserve the inventory
+
                 inventory1.setQuantity(inventory1.getQuantity() - outBoxOrder.getQuantity());
+                    if(threshold >= inventory1.getQuantity()){
+                        String message = "Product with ID: " + inventory1.getProductId() + " is low in stock!";
+                        //implement string object behaviour as a generalized view
+
+                        try {
+                            JsonNode nodeMessage = objectMapper.createObjectNode().put("message", message);;
+                            kafkaTemplate.send("low_stock_alerts", nodeMessage);
+
+
+                        } catch (Exception e) {
+                            System.out.println("we are in low stock alert zone");
+                            e.printStackTrace();
+                        }
+                        Optional<BelowThresholdProductQuantity> products = belowThresholdProductsRepository.findByProductId(inventory1.getProductId());
+                        if (products.isPresent()) {
+                            BelowThresholdProductQuantity existingProductWithLessInventory = products.get();
+                            existingProductWithLessInventory.setQuantity(inventory1.getQuantity());
+                            belowThresholdProductsRepository.save(existingProductWithLessInventory);
+                        } else {
+                            belowThresholdProductsRepository.save(new BelowThresholdProductQuantity(null, inventory1.getProductId(), inventory1.getQuantity(), LocalDateTime.now()));
+                        }
+                    }
+
+
+
                 inventoryRepository.save(inventory1);
                 try {
                     JsonNode outBoxOrderJson = objectMapper.valueToTree(outBoxOrder);
@@ -176,7 +202,11 @@ public class InventoryServiceImplementation implements InventoryService {
         Optional<Inventory> inventory = inventoryRepository.findByProductId(outBoxOrder.getProductId());
         if(inventory.isPresent()) {
             Inventory inventory1 = inventory.get();
+            System.out.println("we are in the release inventory 1"+" "+ inventory1.getQuantity());
+
             inventory1.setQuantity(inventory1.getQuantity() + outBoxOrder.getQuantity());
+            System.out.println("we are in the release inventory 2"+" "+ inventory1.getQuantity());
+
             inventoryRepository.save(inventory1);
         }
     }

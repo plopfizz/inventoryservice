@@ -14,5 +14,6 @@ public class OutBoxOrderEntity {
    private String productId;
    private Long orderId;
    private StockAdjustmentActionEnum stockAdjustmentEnum;
+   private Double price;
 
 }
